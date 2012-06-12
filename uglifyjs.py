@@ -4,7 +4,7 @@
 # see http://marijnhaverbeke.nl/uglifyjs
 # Alternatively uses Google Closure API
 
-import httplib, urllib, sys
+import httplib, urllib, sys, simplejson as json
 from optparse import OptionParser
 
 def main():
@@ -38,9 +38,11 @@ def main():
     parser.error("No JavaScript was supplied!")
 
   params = urllib.urlencode([
-      ('js_code', js_code),
-      ('output_format', 'text'),
-      ('output_info', 'compiled_code'),
+      ("js_code", js_code),
+      ("output_format", "json"),
+      ("output_info", "compiled_code"),
+      ("output_info", "errors"),
+      ("output_info", "warnings"),
     ])
 
   # Set API
@@ -55,9 +57,20 @@ def main():
   # Set header and connect
   headers = { "Content-type": "application/x-www-form-urlencoded" }
   conn = httplib.HTTPConnection(domain)
-  conn.request('POST', path, params, headers)
+  conn.request("POST", path, params, headers)
   response = conn.getresponse()
   minJs = response.read()
+
+  if options.closure:
+    jsonResponse = json.loads(minJs)
+    if jsonResponse.get("errors", False):
+      parser.error(jsonResponse["errors"])
+    
+    try:  
+      minJs = jsonResponse["compiledCode"]
+    except KeyError:
+      parser.error("No compressed code was returned!");
+
 
   if options.filename:
     # Write to output
